@@ -40,10 +40,17 @@ endif::[]
 
 == It's a City Under Siege
 
+// Install latest version of asciidoctor-pdf with gem:
+// gem install asciidoctor-pdf
+// (https://docs.asciidoctor.org/pdf-converter/latest/install/)
+// compile using this one: 
+// $HOME/.ruby_gems_perso//bin/asciidoctor-pdf
 
 // Compile with 
 // asciidoctor-pdf -r asciidoctor-mathematical sample.adoc
 // (https://docs.asciidoctor.org/pdf-converter/latest/stem/)
+// requires : gem install asciidoctor-mathematical
+// (https://github.com/asciidoctor/asciidoctor-mathematical?tab=readme-ov-file#installation)
 
 [stem]
 ++++
@@ -52,6 +59,33 @@ x = \frac{-b \pm \sqrt{b^2 - 4ac}}{2a}
 
 Inline equation works too! latexmath:[a^2+b^2=c^2]. Or as stem
 stem:[a^2+b^2=c^2]. Pretty nice, huh?
+
+// Compile with
+// asciidoctor-pdf -r asciidoctor-mathematical -r asciidoctor-diagram sample.adoc
+// Requires : gem install asciidoctor-diagram
+// (https://docs.asciidoctor.org/diagram-extension/latest/installation/)
+// (github source does not elaborate on install)
+// and : npm install @mermaid-js/mermaid-cli
+// (https://github.com/mermaid-js/mermaid-cli ; '-g' is removed to install only locally
+// provides : ~/node_modules/@mermaid-js/mermaid-cli/src
+// ├── cli.js
+// └── index.js
+// then add mmdc symlink : ln -s $HOME/node_modules/@mermaid-js/mermaid-cli/src/cli.js mmdc
+// to fix : asciidoctor: ERROR: chronicles-example.adoc: line 54: Failed to generate image: Could not find the 'mmdc' executable in PATH; add it to the PATH or specify its location using the 'mmdc' document attribute
+
+// Example from:
+// https://gist.github.com/plamentotev/be495e81abd52dc10e7dd51fbb71dd8c#file-diagrams-adoc
+
+[mermaid]
+....
+sequenceDiagram
+    participant Alice
+    participant Bob
+    Alice->>Bob: Hello Bob, how are you?
+    Bob-->>Alice: Great!
+....
+
+
 
 
 This journey begins one late Monday afternoon at {url-devoxx}[((Devoxx))].
