@@ -50,6 +50,9 @@ endif::[]
 x = \frac{-b \pm \sqrt{b^2 - 4ac}}{2a}
 ++++
 
+Inline equation works too! latexmath:[a^2+b^2=c^2]. Or as stem
+stem:[a^2+b^2=c^2]. Pretty nice, huh?
+
 
 This journey begins one late Monday afternoon at {url-devoxx}[((Devoxx))].
 (((Conference,Devoxx)))
