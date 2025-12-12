@@ -1,4 +1,5 @@
-= Keys, Properties and Values
+= Theme Keys, Properties and Values
+:navtitle: Theme Language
 
 The Asciidoctor PDF theme language is described using the http://en.wikipedia.org/wiki/YAML[YAML^] data format.
 YAML is a human-friendly data format that resembles CSS.
@@ -31,6 +32,10 @@ See xref:blocks.adoc#align[Alignment for blocks] for more information.
 * The `text-align` key in the theme language has the same function as the `text-align` property in CSS.
 See xref:text.adoc#text-align[Text alignment] for more information.
 * The `font-color` property in the theme language is equivalent to the `color` property in CSS.
+
+TIP: When you look at the bundled themes, you'll see that they use an underscore to separate key names.
+The underscore separator is used for bundled themes since it requires no translation and those themes are loaded frequently.
+The hyphen is the preferred separator for use in custom themes since it looks clearer.
 
 [#values]
 == Key values

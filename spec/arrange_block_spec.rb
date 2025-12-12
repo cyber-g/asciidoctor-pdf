@@ -500,7 +500,7 @@ describe 'Asciidoctor::PDF::Converter#arrange_block' do
         (expect (pdf.find_unique_text 'does not fit')[:page_number]).to be 2
         (expect (pdf.find_unique_text 'paragraph')[:page_number]).to be 2
         (expect calls).to have_size 1
-        (expect (calls.join ?\n).scan '`dry_run\'').to have_size 2
+        (expect (calls.join ?\n).scan %r/[`# ]dry_run'/).to have_size 3
       end
 
       it 'should restart dry run at current position once content exceeds height of first page' do
@@ -2046,40 +2046,75 @@ describe 'Asciidoctor::PDF::Converter#arrange_block' do
         (expect column_rules[1][:from][:y]).to eql expected_y
       end
     end
+
+    it 'should correctly compute extent of advanced block when column_box starts below top' do
+      pdf_theme.update page_columns: 2, page_column_gap: 12, code_border_color: 'AA0000', code_background_color: 'transparent', code_border_radius: 0
+
+      pdf = with_content_spacer 10, 550 do |spacer_path|
+        input = <<~END
+        = An Excessively Long Document Title That Wraps To A Second Line
+
+        start of body
+
+        image::#{spacer_path}[]
+
+        [,ruby]
+        ----
+        lyrics = "fizzbuzzfizzbuzzfizzbuzzfizzbuzzfizzbuzzfizzbuzzfizzbuzzfizzbuzzfizzbuzzfizzbuzz"
+        ----
+        END
+
+        pdf = to_pdf input, pdf_theme: pdf_theme, analyze: true
+        pages = pdf.pages
+        (expect pages).to have_size 1
+        lines = (to_pdf input, pdf_theme: pdf_theme, analyze: :line).lines
+        (expect (pdf.find_unique_text 'start of body')[:y].round).to eql 646
+        code_lines = lines.select {|it| it[:color] == 'AA0000' }
+        (expect code_lines).to have_size 4
+        (expect code_lines[0][:from][:x]).to eql 312.0
+        (expect code_lines[0][:to][:x]).to eql 562.0
+        (expect code_lines[0][:from][:y]).to eql 657.76
+        (expect code_lines[0][:to][:y]).to eql 657.76
+        (expect code_lines[1][:from][:x]).to eql 562.0
+        (expect code_lines[1][:to][:x]).to eql 562.0
+        (expect code_lines[1][:from][:y]).to eql 657.76
+        (expect code_lines[1][:to][:y]).to eql 591.54
+      end
+    end
   end
 
   # NOTE: generate reference files using ./scripts/generate-arrange-block-reference-files.sh
   describe 'acceptance', if: ENV['COVERAGE'], visual: true do
     it 'at top, fits' do
       to_file = to_pdf_file (Pathname.new (fixture_file 'arrange-block-at-top-fits.adoc')),
-        'arrange-block-at-top-fits.pdf', attribute_overrides: { 'source-highlighter' => 'rouge' }
+        'arrange-block-at-top-fits.pdf'
       (expect to_file).to visually_match 'arrange-block-at-top-fits.pdf'
     end
 
     it 'at top, does not fit' do
       (expect do
         to_file = to_pdf_file (Pathname.new (fixture_file 'arrange-block-at-top-does-not-fit.adoc')),
-          'arrange-block-at-top-does-not-fit.pdf', attribute_overrides: { 'source-highlighter' => 'rouge' }
+          'arrange-block-at-top-does-not-fit.pdf'
         (expect to_file).to visually_match 'arrange-block-at-top-does-not-fit.pdf'
       end).to log_message severity: :ERROR, message: /the table cell on page \d+ has been truncated/
     end
 
     it 'below top, fits' do
       to_file = to_pdf_file (Pathname.new (fixture_file 'arrange-block-below-top-fits.adoc')),
-        'arrange-block-below-top-fits.pdf', attribute_overrides: { 'source-highlighter' => 'rouge' }
+        'arrange-block-below-top-fits.pdf'
       (expect to_file).to visually_match 'arrange-block-below-top-fits.pdf'
     end
 
     it 'below top, does not fit' do
       to_file = to_pdf_file (Pathname.new (fixture_file 'arrange-block-below-top-does-not-fit.adoc')),
-        'arrange-block-below-top-does-not-fit.pdf', attribute_overrides: { 'source-highlighter' => 'rouge' }
+        'arrange-block-below-top-does-not-fit.pdf'
       (expect to_file).to visually_match 'arrange-block-below-top-does-not-fit.pdf'
     end
 
     it 'below top, does not fit, media=prepress' do
       to_file = to_pdf_file (Pathname.new (fixture_file 'arrange-block-below-top-does-not-fit.adoc')),
-        'arrange-block-below-top-does-not-fit.pdf',
-        attribute_overrides: { 'source-highlighter' => 'rouge', 'media' => 'prepress', 'pdf-theme' => 'default', 'doctype' => 'book' }
+        'arrange-block-below-top-does-not-fit-prepress.pdf',
+        attribute_overrides: { 'media' => 'prepress', 'pdf-theme' => 'default', 'doctype' => 'book' }
       (expect to_file).to visually_match 'arrange-block-below-top-does-not-fit-prepress.pdf'
     end
   end

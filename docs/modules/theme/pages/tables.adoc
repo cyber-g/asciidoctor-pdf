@@ -85,7 +85,7 @@ See xref:table.adoc#head[the table-head category] for a list of all keys that ca
 
 The `grid-width` key specifies the width of the grid lines applied to the rows and columns of tables.
 The key accepts a single measurement value or a 2-value array of measurements.
-When a single value is assigned to `grid-width`, that value is applied to the row and column gird lines.
+When a single value is assigned to `grid-width`, that value is applied to the row and column grid lines.
 
 .Single value assigned to grid-width
 [,yaml]
@@ -206,3 +206,10 @@ table:
   caption:
     end: bottom
 ----
+
+[#table-cell-paragraphs]
+== Table cell paragraphs
+
+Except for AsciiDoc table cells, paragraphs in a table cell are always separated by the height of one line.
+This spacing cannot be controlled directly by the theme.
+If you require control over the spacing between paragraphs in a table cell, convert that table cell to an AsciiDoc table cell by adding the `a` style.

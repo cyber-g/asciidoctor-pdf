@@ -4,18 +4,18 @@ permissions: read-all
 jobs:
   build:
     name: ${{ github.event.client_payload.message }}
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     env:
-      ASCIIDOCTOR_DIAGRAM_VERSION: '~> 2.1'
+      ASCIIDOCTOR_DIAGRAM_VERSION: '~> 3.0'
+      PRAWN_GMAGICK_VERSION: '0.0.9'
       PYGMENTS_VERSION: '~> 2.0'
       RGHOST_VERSION: '0.9.7'
-      PRAWN_GMAGICK_VERSION: '0.0.9'
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
     - name: Install Ruby
       uses: ruby/setup-ruby@v1
       with:
-        ruby-version: '3.2'
+        ruby-version: '3.3'
     - name: Configure Bundler
       run: |
         bundle config --local clean true

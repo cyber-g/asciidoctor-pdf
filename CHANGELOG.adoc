@@ -26,18 +26,21 @@ Enhancements::
 * upgrade to prawn-icon 3.1.x to add support for the Material Design Icons (`mdi`) as an available font-based icon set (PR #2334)
 * honor `GS_OPTIONS` environment variable for supplying additional parameters to command called by RGhost optimizer (#2337)
 * add support for passing a color mode to the default optimizer (#2347)
-* support horizontal alignment on AsciiDoc table cell that only contains paragraphs (#2358)
 * allow revision content to be customized by theme (#2362)
-* add symbols for shift, command, option, and return keys to the fallback font
 * add support for `nowrap` and `nobreak` roles on formatted text
 * do not insert break opportunities into bare URL with `nobreak` role
+* convert string with non-ASCII characters to NFD when applying smallcaps transformation to support diacritics (#2485)
+* add single up and down arrow to built-in fonts (fonts used by default themes) (#2586)
+* implement support for extent attribute (container|margin|page) on tables (#1415)
+* allow list marker on bibliography list to be customized using ulist_marker_biblio theme category (#2407)
 
 Improvements::
 
 * process `pre-wrap` role in text formatter
 * drop support for the unmaintained payment font (`pf`) for use in font-based icons
 * refactor formatted text transform to simplify how inner space is collapsed; verify only inner hard breaks are preserved
-* allow relative font size for sub and sup to be set independently; support combined setting for backwards compatibility
+* upgrade prawn-svg to 0.36 to fix dependencies, improve gradient support, and support additional properties; disable experimental warnings when requiring prawn-svg on Ruby 2.7 (#2551)
+* upgrade prawn-svg to 0.38.x (#2604)
 
 Bug Fixes::
 
@@ -51,6 +54,175 @@ Bug Fixes::
 * don't crash if page background image value is empty (interpret as "none")
 * prevent special character substitution from interfering with callouts in plain verbatim block (#2390)
 * remove deprecated, undocumented `svg-font-family` theme key (the correct key is `svg-fallback-font-family`)
+* major improvement to OTF support following release of ttfunk 1.8.0 (automatic transitive dependency of prawn)
+
+Compliance::
+
+* drop support for JRuby 9.2 (require at least Ruby 2.7 compliance)
+
+== 2.3.24 (2025-11-15) - @mojavelinux
+
+Improvements::
+
+* bypass any dry run logic if remaining height on page is less than heading font size
+* update import_page method on converter to return true if page was imported (nil otherwise), on par with the functionality of method it replaces
+* limit min toclevels value so it does not cause TOC to be empty (#2619)
+* add checkmark glyph (U+2713) to prose fonts (Noto Serif and Noto Sans) to avoid need for fallback font (#2617)
+
+=== Details
+
+{url-repo}/releases/tag/v2.3.24[git tag] | {url-repo}/compare/v2.3.23\...v2.3.24[full diff]
+
+== 2.3.23 (2025-10-26) - @mojavelinux
+
+Bug Fixes::
+
+* fix incorrect spacing between entries in horizontal dlist when entry description crosses page boundary (#2614)
+
+=== Details
+
+{url-repo}/releases/tag/v2.3.23[git tag] | {url-repo}/compare/v2.3.22\...v2.3.23[full diff]
+
+== 2.3.22 (2025-10-23) - @mojavelinux
+
+Bug Fixes::
+
+* don't orphan section with unbreakable option that spans page boundary (#2608)
+* correctly track start page number of section title that self-advances when section is breakable (#2609)
+
+=== Details
+
+{url-repo}/releases/tag/v2.3.22[git tag] | {url-repo}/compare/v2.3.21\...v2.3.22[full diff]
+
+== 2.3.21 (2025-10-08) - @mojavelinux
+
+Improvements::
+
+* remove shy hyphens from text in log message when formatted text cannot be parsed (#2599)
+* clear float box if next block falls outside of float group (#2596)
+* resolve fonts relative to theme dir before GEM_FONTS_DIR if `pdf-fontsdir` not specified (#2349)
+* add see and see-also associations on index terms to index (#2527)
+
+=== Details
+
+{url-repo}/releases/tag/v2.3.21[git tag] | {url-repo}/compare/v2.3.20\...v2.3.21[full diff]
+
+== 2.3.20 (2025-09-17) - @mojavelinux
+
+Improvements::
+
+* add symbols for shift, command, option, and return keys to the fallback font
+* render horizontal dlist without using prawn-table, allowing the description to exceed the height of one page (#2591)
+* allow relative font size for sub and sup to be set independently (support combined setting for backwards compatibility)
+* allow value of `base-font-size-min` and `<category>-font-size-min` theme keys to be relative (e.g., 0.75em) (#2547)
+* respect `hide-uri-scheme` attribute when appending URL to link text when media is print or prepress (#2583)
+
+Bug Fixes::
+
+* always force NULL character to have 0 width, even if missing from font (#2585)
+* don't drop line in running content if attribute reference resolves to text that contains attribute reference (not originally present)
+* correctly calculate extent for block in columns that starts below doctitle (#2579)
+* support internal link on image (value of link attribute starts with #) (#2572)
+
+Compliance::
+
+* suppress warning about the use of Ruby's logger gem when loading Asciidoctor
+* ignore error if bigdecimal gem cannot be eagerly required
+
+=== Details
+
+{url-repo}/releases/tag/v2.3.20[git tag] | {url-repo}/compare/v2.3.19\...v2.3.20[full diff]
+
+== 2.3.19 (2024-10-11) - @mojavelinux
+
+Improvements::
+
+* replace OpenStruct with internal ThemeData class for storing theme data (#2535)
+
+Bug Fixes::
+
+* support horizontal alignment on AsciiDoc table cell that only contains paragraphs (#2358)
+* don't allow AsciiDoc table cell to overrun bottom of page on which it fits (#2538)
+* don't look for NULL glyph in fallback font as this can impact line height (#2541)
+
+=== Details
+
+{url-repo}/releases/tag/v2.3.19[git tag] | {url-repo}/compare/v2.3.18\...v2.3.19[full diff]
+
+== 2.3.18 (2024-07-27) - @mojavelinux
+
+Bug Fixes::
+
+* position foreground image correctly when page layout changes (#2528)
+
+Compliance::
+
+* release lock on version of rexml (pulled in by asciidoctor-diagram and prawn-svg) now that incompatibility is resolved
+
+== 2.3.17 (2024-06-01) - @mojavelinux
+
+Improvements::
+
+* always use /Producer field in document info to credit Asciidoctor PDF and Prawn, even when author is set (#2510)
+* map `producer` attribute to /Producer field in document info to override or default value (#2510)
+* map `publisher` attribute to /Creator field instead of /Producer field in document info; use author as fallback (#2510)
+
+=== Details
+
+{url-repo}/releases/tag/v2.3.17[git tag] | {url-repo}/compare/v2.3.16\...v2.3.17[full diff]
+
+== 2.3.16 (2024-05-31) - @mojavelinux
+
+Improvements::
+
+* don't hyphenate autolink when hyphenation is enabled (#2521) (*@meonkeys*)
+* add support for base64-encoded SVG image reference in SVG (#2512)
+
+Bug Fixes::
+
+* duplicate attributes on table when wrapping table in breakable or unbreakable container (#2520)
+
+Compliance::
+
+* lock version of rexml (pulled in by asciidoctor-diagram and prawn-svg) to fix incompatibility
+
+=== Details
+
+{url-repo}/releases/tag/v2.3.16[git tag] | {url-repo}/compare/v2.3.15\...v2.3.16[full diff]
+
+== 2.3.15 (2024-03-12) - @mojavelinux
+
+Improvements::
+
+* drop links from entries in TOC (#2505)
+
+Compliance::
+
+* lock ttfunk to 1.7.x in the 2.3.x release line to avoid requiring Ruby headers (i.e., development libraries) to install gem (#2508)
+
+=== Details
+
+{url-repo}/releases/tag/v2.3.15[git tag] | {url-repo}/compare/v2.3.14\...v2.3.15[full diff]
+
+== 2.3.14 (2024-03-08) - @mojavelinux
+
+Improvements::
+
+* upgrade prawn-svg to 0.34 to add support for SVG referenced by image tag (SVG in SVG)
+
+Bug Fixes::
+
+* propagate source location to table cell for description in horizontal dlist so it is included in truncation warning message (#2502)
+* eradicate use of the base64 library to fix warning about base64 gem when using Ruby >= 3.3
+* upgrade prawn-svg to 0.34 to fix warning about base64 gem when using Ruby >= 3.3; apply additional patch to fix bug in prawn-svg
+
+Build / Infrastructure::
+
+* bump upper Ruby version to 3.3 in CI workflow
+
+=== Details
+
+{url-repo}/releases/tag/v2.3.14[git tag] | {url-repo}/compare/v2.3.13\...v2.3.14[full diff]
 
 == 2.3.13 (2024-02-16) - @mojavelinux
 

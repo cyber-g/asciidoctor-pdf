@@ -5,8 +5,8 @@ on:
     paths-ignore: ['*.adoc', 'docs/**']
   pull_request:
     paths-ignore: ['*.adoc', 'docs/**']
-  schedule:
-  - cron: '0 2 * * *'
+  #schedule:
+  #- cron: '0 2 * * *'
   workflow_dispatch:
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -18,20 +18,20 @@ jobs:
       (github.event_name == 'schedule' && github.repository_owner == 'asciidoctor') ||
       github.event_name == 'push' || github.event_name == 'workflow_dispatch' ||
       (github.event_name == 'pull_request' && !startsWith(github.head_ref, 'docs/'))
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     steps:
     - name: Proceed
       run: echo ok go
   lint:
     needs: activate
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     steps:
     - name: Checkout
-      uses: actions/checkout@v3
+      uses: actions/checkout@v4
     - name: Install Ruby
       uses: ruby/setup-ruby@v1
       with:
-        ruby-version: '3.2'
+        ruby-version: '3.3'
     - name: Configure Bundler
       run: |
         bundle config --local path .bundle/gems
@@ -44,40 +44,49 @@ jobs:
     needs: lint
     strategy:
       matrix:
-        os: [ubuntu-latest, windows-latest]
-        ruby: [jruby-9.2.21.0, jruby-9.4.2.0, '2.7', '3.2']
+        os: [ubuntu-22.04]
+        #os: [ubuntu-22.04, windows-2022]
+        ruby: [jruby-9.4.2.0, '2.7', '3.3']
         asciidoctor-version: [~]
-        asciidoctor-diagram-version: ['~> 2.2']
+        asciidoctor-diagram-version: ['~> 3.0']
         asciidoctor-kroki-version: [~]
         rouge-version: [~]
         upstream: [~]
         exclude:
-        # remove 3.2 on ubuntu-latest to mark as primary
-        - os: ubuntu-latest
-          ruby: '3.2'
+        # remove 3.3 on ubuntu-22.04 to mark as primary
+        - os: ubuntu-22.04
+          ruby: '3.3'
+        # remove 3.3 on windows-2022 to lock version
+        - os: windows-2022
+          ruby: '3.3'
         include:
-        - os: ubuntu-latest
+        # test oldest Ruby 3 to ensure compatibility across full range of Ruby 3 versions
+        - os: ubuntu-22.04
           ruby: '3.0'
-        - os: macos-latest
-          ruby: '3.2'
-        - os: ubuntu-latest
+        # test latest Ruby 3 to ensure compatibility across full range of Ruby 3 versions
+        - os: ubuntu-22.04
+          ruby: '3.4'
+        #- os: macos-12
+        #  ruby: '3.3'
+        # test oldest permitted versions of dependencies
+        - os: ubuntu-22.04
           ruby: '2.7'
           asciidoctor-version: '2.0.10'
           rouge-version: '~> 2.0.0'
-        - os: windows-latest
-          ruby: '3.2'
-          asciidoctor-diagram-version: ~
-          asciidoctor-kroki-version: '0.8.0'
+        #- os: windows-2022
+        #  ruby: '3.3.4' # lock version to work around warning about fiddle gem
+        #  asciidoctor-diagram-version: ~
+        #  asciidoctor-kroki-version: '0.10.0'
         # NOTE: enable once Asciidoctor 2.1.0 is released
-        #- os: ubuntu-latest
-        #  ruby: '3.2'
+        #- os: ubuntu-22.04
+        #  ruby: '3.3'
         #  asciidoctor-version: '~> 2.0.0'
-        - os: ubuntu-latest
-          ruby: '3.2'
+        - os: ubuntu-22.04
+          ruby: '3.3'
           upstream: upstream
-        - os: ubuntu-latest
-          ruby: '3.2'
-          rouge-version: '~> 4.0.0'
+        - os: ubuntu-22.04
+          ruby: '3.3'
+          rouge-version: '~> 4.5.0'
           primary: primary
     runs-on: ${{ matrix.os }}
     env:
@@ -85,7 +94,7 @@ jobs:
       RGHOST_VERSION: '0.9.7'
     steps:
     - name: Checkout
-      uses: actions/checkout@v3
+      uses: actions/checkout@v4
       with:
         fetch-depth: 5
     - name: Install Ruby
@@ -103,18 +112,24 @@ jobs:
         bundle config --local without docs lint
         echo 'COVERAGE=deep' >> $GITHUB_ENV
     - name: Install Ghostscript and Poppler (Linux)
-      if: matrix.os == 'ubuntu-latest'
+      if: matrix.os == 'ubuntu-22.04'
       run: |
         sudo apt-get update
         sudo apt-get install ghostscript poppler-utils
-    - name: Install Ghostscript and Poppler (macOS)
-      if: matrix.os == 'macos-latest'
-      run: brew install ghostscript poppler
+    #- name: Install Ghostscript and Poppler (macOS)
+    #  if: matrix.os == 'macos-12'
+    #  run: |
+    #    brew unlink ghostscript
+    #    # ghostscript 10.02.1
+    #    wget https://raw.githubusercontent.com/Homebrew/homebrew-core/0e594be417b7947dcf7d6eb63293fcf652b7e3ae/Formula/g/ghostscript.rb
+    #    brew install --formula ./ghostscript.rb
+    #    brew link ghostscript || true
+    #    brew install poppler
     - name: Install Ghostscript and Poppler and set GS env var (Windows)
-      if: matrix.os == 'windows-latest'
+      if: matrix.os == 'windows-2022'
       run: |
         choco install --no-progress poppler --version=0.89.0
-        choco install --no-progress ghostscript
+        choco install --no-progress ghostscript --version=10.0.0.20230317
         echo "GS=$(& where.exe /R 'C:\Program Files\gs' gswin64c.exe)" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
     - name: Set Prawn Gmagick version / Install GraphicsMagick (Linux)
       if: matrix.primary
@@ -122,7 +137,7 @@ jobs:
         echo 'PRAWN_GMAGICK_VERSION=0.0.9' >> $GITHUB_ENV
         sudo apt-get install libgraphicsmagick1-dev
     #- name: Set Prawn Gmagick version / Install GraphicsMagick (macOS)
-    #  if: matrix.os == 'macos-latest'
+    #  if: matrix.os == 'macos-12'
     #  run: |
     #    echo 'PRAWN_GMAGICK_VERSION=0.0.9' >> $GITHUB_ENV
     #    brew install GraphicsMagick
@@ -151,7 +166,7 @@ jobs:
       if: matrix.upstream
       run: |
         bundle exec ruby scripts/switch-to-asciidoctor-head.rb
-        bundle exec ruby scripts/switch-to-prawn-head.rb
+        #bundle exec ruby scripts/switch-to-prawn-head.rb
         rm -f Gemfile.lock
         bundle config --local clean true
         bundle --jobs 3 --retry 3

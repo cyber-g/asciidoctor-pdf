@@ -7,6 +7,8 @@
 == description-list
 
 The keys in the `description-list` category control the arrangement and style of description list terms and descriptions.
+The indent key does not apply to horizontal description lists.
+Additionally, the term-padding key is not honored on horizontal description lists as it introduces layout problems.
 
 [cols="4,4,5a"]
 |===

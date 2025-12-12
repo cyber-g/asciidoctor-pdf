@@ -43,7 +43,7 @@ describe 'Asciidoctor::PDF::Converter - Image' do
 
   it 'should not crash if doctitle contains inline image with data URI target' do
     image_data = File.binread fixture_file 'square.jpg'
-    encoded_image_data = Base64.strict_encode64 image_data
+    encoded_image_data = [image_data].pack 'm0'
     pdf = to_pdf <<~END, analyze: :image
     = Document Title image:data:image/jpg;base64,#{encoded_image_data}[]
 
@@ -1046,6 +1046,12 @@ describe 'Asciidoctor::PDF::Converter - Image' do
       (expect to_file).to visually_match 'image-block-svg-with-image.pdf'
     end
 
+    it 'should embed SVG image from data-uri in SVG', visual: true do
+      pdf = to_pdf 'image::svg-with-data-uri-svg-image.svg[]', analyze: :rect
+      (expect pdf.rectangles).to have_size 1
+      (expect pdf.rectangles[0][:fill_color]).to eql 'FF0000'
+    end
+
     it 'should support non-standard image/jpg MIME type', visual: true do
       image_data = File.binread fixture_file 'square.jpg'
       pdf = to_pdf 'image::svg-with-data-uri-jpg-image.svg[pdfwidth=1.27cm]', analyze: :image
@@ -1134,7 +1140,7 @@ describe 'Asciidoctor::PDF::Converter - Image' do
         (expect do
           pdf = to_pdf %(image#{macro_delim}broken.svg[Broken SVG]), analyze: true
           (expect pdf.lines).to eql [alt_text]
-        end).to log_message severity: :WARN, message: %(~could not embed image: #{fixture_file 'broken.svg'}; Missing end tag for 'rect')
+        end).to log_message severity: :WARN, message: %(~could not embed image: #{fixture_file 'broken.svg'}; The data supplied is not a valid SVG document.\nMissing end tag for 'rect')
       end
     end
 
@@ -1217,23 +1223,23 @@ describe 'Asciidoctor::PDF::Converter - Image' do
       end
     end
 
-    it 'should not embed local SVG in inline image', visual: true do
+    it 'should embed local SVG in inline image', visual: true do
       (expect do
         to_file = to_pdf_file <<~'END', 'image-inline-svg-with-local-svg.pdf'
-        image:svg-with-local-svg.svg[pdfwidth=1.27cm] lacks the red square.
+        image:svg-with-local-svg.svg[pdfwidth=1.27cm] contains a red square.
         END
         (expect to_file).to visually_match 'image-inline-svg-with-local-svg.pdf'
-      end).to log_message severity: :WARN, message: %(~problem encountered in image: #{fixture_file 'svg-with-local-svg.svg'}; Unsupported image type supplied to image tag)
+      end).not_to log_message
     end
 
     it 'should not embed local SVG in block image', visual: true do
       (expect do
         to_file = to_pdf_file <<~'END', 'image-block-svg-with-local-svg.pdf'
-        .Lacks the red square
+        .Contains a red square
         image::svg-with-local-svg.svg[pdfwidth=5in]
         END
         (expect to_file).to visually_match 'image-block-svg-with-local-svg.pdf'
-      end).to log_message severity: :WARN, message: %(~problem encountered in image: #{fixture_file 'svg-with-local-svg.svg'}; Unsupported image type supplied to image tag)
+      end).not_to log_message
     end
   end
 
@@ -1873,7 +1879,7 @@ describe 'Asciidoctor::PDF::Converter - Image' do
   context 'Data URI' do
     it 'should embed block image if target is a JPG data URI' do
       image_data = File.binread fixture_file 'square.jpg'
-      encoded_image_data = Base64.strict_encode64 image_data
+      encoded_image_data = [image_data].pack 'm0'
       pdf = to_pdf %(image::data:image/jpg;base64,#{encoded_image_data}[])
       images = get_images pdf, 1
       (expect images).to have_size 1
@@ -1884,14 +1890,14 @@ describe 'Asciidoctor::PDF::Converter - Image' do
 
     it 'should embed block image if target is an SVG data URI' do
       image_data = File.read (fixture_file 'square.svg'), mode: 'r:UTF-8'
-      encoded_image_data = Base64.strict_encode64 image_data
+      encoded_image_data = [image_data].pack 'm0'
       pdf = to_pdf %(image::data:image/svg+xml;base64,#{encoded_image_data}[]), analyze: :rect
       (expect pdf.rectangles).to have_size 1
     end
 
     it 'should embed inline image if target is a JPG data URI' do
       image_data = File.binread fixture_file 'square.jpg'
-      encoded_image_data = Base64.strict_encode64 image_data
+      encoded_image_data = [image_data].pack 'm0'
       pdf = to_pdf %(image:data:image/jpg;base64,#{encoded_image_data}[] base64)
       images = get_images pdf, 1
       (expect images).to have_size 1
@@ -1902,7 +1908,7 @@ describe 'Asciidoctor::PDF::Converter - Image' do
 
     it 'should embed inline image if target is an SVG data URI' do
       image_data = File.read (fixture_file 'square.svg'), mode: 'r:UTF-8'
-      encoded_image_data = Base64.strict_encode64 image_data
+      encoded_image_data = [image_data].pack 'm0'
       pdf = to_pdf %(image:data:image/svg+xml;base64,#{encoded_image_data}[]), analyze: :rect
       (expect pdf.rectangles).to have_size 1
     end
@@ -2491,6 +2497,24 @@ describe 'Asciidoctor::PDF::Converter - Image' do
       end).to log_message severity: :WARN, message: '~image to embed not found or not readable'
     end
 
+    it 'should link to internal destination if link value on block image is a fragment' do
+      pdf = to_pdf <<~'END', attribute_overrides: { 'imagesdir' => examples_dir }
+      [#a]
+      == Section A
+
+      [link=#b]
+      image::sample-logo.jpg[B]
+
+      [#b]
+      == Section B
+      END
+
+      annotations = get_annotations pdf, 1
+      (expect annotations).to have_size 1
+      link_annotation = annotations[0]
+      (expect link_annotation[:Dest]).to eql 'b'
+    end
+
     it 'should add link around inline image if link attribute is set' do
       pdf = to_pdf <<~'END', attribute_overrides: { 'imagesdir' => examples_dir }
       image:sample-logo.jpg[ACME,pdfwidth=1pc,link=https://example.org] is a sign of quality!
@@ -2544,6 +2568,23 @@ describe 'Asciidoctor::PDF::Converter - Image' do
       (expect (link_rect[2] - link_rect[0]).round 1).to eql 12.0
       (expect (link_rect[3] - link_rect[1]).round 1).to eql 14.3
       (expect link_rect[0]).to eql 48.24
+    end
+
+    it 'should link to internal destination if link value on inline image is a fragment' do
+      pdf = to_pdf <<~'END', attribute_overrides: { 'imagesdir' => examples_dir }
+      [#a]
+      == Section A
+
+      Jump to image:sample-logo.jpg[B,link=#b]
+
+      [#b]
+      == Section B
+      END
+
+      annotations = get_annotations pdf, 1
+      (expect annotations).to have_size 1
+      link_annotation = annotations[0]
+      (expect link_annotation[:Dest]).to eql 'b'
     end
   end
 

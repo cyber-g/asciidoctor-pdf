@@ -1145,11 +1145,11 @@ describe 'Asciidoctor::PDF::Converter - List' do
         doc.convert
         dlist = doc.blocks[0]
         term, desc = (item = (items = dlist.items)[0])
-        (expect dlist).to be == original_dlist
-        (expect term).to be == original_term
-        (expect items).to be == original_items
-        (expect item).to be == original_item
-        (expect desc).to be == original_desc
+        (expect dlist).to eq original_dlist
+        (expect term).to eq original_term
+        (expect items).to eq original_items
+        (expect item).to eq original_item
+        (expect desc).to eq original_desc
       end
 
       it 'should arrange horizontal list in two columns' do
@@ -1292,6 +1292,37 @@ describe 'Asciidoctor::PDF::Converter - List' do
         foo_text = pdf.find_unique_text 'foo'
         desc_text = pdf.find_unique_text 'desc'
         (expect foo_text[:y]).to eql desc_text[:y]
+      end
+
+      it 'should start next entry after terms when terms occupy more lines than desc' do
+        pdf = to_pdf <<~'END', analyze: true
+        [horizontal]
+        foo::
+        bar::
+        baz::
+        desc
+
+        fizz:: buzz
+        END
+
+        (expect (pdf.find_unique_text 'fizz')[:y]).to be < (pdf.find_unique_text 'desc')[:y]
+        (expect (pdf.find_unique_text 'fizz')[:y]).to be < (pdf.find_unique_text 'baz')[:y]
+      end
+
+      it 'should keep multiple terms together when entry starts near page boundary' do
+        pdf = with_content_spacer 10, 700 do |spacer_path|
+          to_pdf <<~END, analyze: true
+          image::#{spacer_path}[]
+
+          [horizontal]
+          foo::
+          bar::
+          baz::
+          desc
+          END
+        end
+
+        (expect (pdf.find_unique_text 'foo')[:page_number]).to eql 2
       end
 
       it 'should align term to top when description spans multiple lines' do
@@ -1499,6 +1530,43 @@ describe 'Asciidoctor::PDF::Converter - List' do
           (expect texts).to have_size 2
           (expect texts[0][:y].round 2).to eql (texts[1][:y].round 2)
         end
+      end
+
+      it 'should not truncate description of dlist item that spans more than one page' do
+        (expect do
+          pdf = to_pdf <<~END, sourcemap: true, attribute_overrides: { 'docfile' => 'test.adoc' }, analyze: true
+          [horizontal]
+          step 1::
+          #{['* task'] * 50 * ?\n}
+          END
+
+          (expect pdf.pages.size).to eql 2
+          (expect (pdf.find_unique_text 'step 1')).not_to be_nil
+          (expect (pdf.find_text 'task').size).to eql 50
+        end).not_to log_message
+      end
+
+      it 'should start next entry after desc when desc spans boundary of page' do
+        pdf = to_pdf <<~END, analyze: true
+        #{['filler'] * 20 * %(\n\n)}
+
+        [horizontal]
+        term::
+        +
+        --
+        #{['* desc'] * 14 * ?\n}
+        --
+        +
+        desc end
+
+        next term::
+        END
+
+        desc_end_text = pdf.find_unique_text 'desc end'
+        next_term_text = pdf.find_unique_text 'next term'
+        (expect next_term_text[:page_number]).to eql desc_end_text[:page_number]
+        (expect next_term_text[:y]).to be < desc_end_text[:y]
+        (expect desc_end_text[:y] - next_term_text[:y]).to (be_within 1).of 28
       end
     end
 
@@ -2215,6 +2283,37 @@ describe 'Asciidoctor::PDF::Converter - List' do
       back_refs = get_annotations pdf, 2
       (expect back_refs).to have_size 1
       (expect back_refs[0][:Dest]).to eql '_bibref_ref_bar'
+    end
+
+    it 'should allow bibliography marker to be customized if ulist_marker_biblio_content theme key is set' do
+      pdf_theme = {
+        ulist_marker_biblio_content: '-',
+        ulist_marker_biblio_font_color: 'aa0000',
+      }
+      pdf = to_pdf <<~'END', pdf_theme: pdf_theme, analyze: true
+      [bibliography]
+      == Bibliography
+
+      * [[[bar]]] Bar, Foo. All The Things. 2010.
+      END
+
+      (expect pdf.lines).to include '- [bar] Bar, Foo. All The Things. 2010.'
+      (expect (pdf.find_unique_text '-')[:font_color]).to eql 'AA0000'
+    end
+
+    it 'should remove indentation if ulist_marker_biblio_content theme key is empty' do
+      pdf_theme = { ulist_marker_biblio_content: '' }
+      pdf = to_pdf <<~'END', pdf_theme: pdf_theme, analyze: true
+      reference
+
+      [bibliography]
+      == Bibliography
+
+      * [[[bar]]] Bar, Foo. All The Things. 2010.
+      END
+
+      (expect pdf.lines).to include '[bar] Bar, Foo. All The Things. 2010.'
+      (expect (pdf.find_unique_text %r/^\[bar\]/)[:x]).to eql (pdf.find_unique_text 'reference')[:x]
     end
   end
 end

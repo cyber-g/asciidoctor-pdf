@@ -1585,6 +1585,18 @@ describe 'Asciidoctor::PDF::Converter - Running Content' do
       (expect running_text).to have_size 1
     end
 
+    it 'should not drop line in content if attribute reference resolves to unresolved attribute reference' do
+      pdf_theme = {
+        footer_recto_right_content: %(keep\n{replace}),
+        footer_verso_left_content: %(keep\n{replace}),
+      }
+
+      pdf = to_pdf 'body', attribute_overrides: { 'replace' => '{me}' }, enable_footer: true, pdf_theme: pdf_theme, analyze: true
+
+      running_text = pdf.find_text %(keep {me})
+      (expect running_text).to have_size 1
+    end
+
     it 'should not warn if attribute is missing in running content' do
       (expect do
         pdf_theme = {
@@ -3046,7 +3058,7 @@ describe 'Asciidoctor::PDF::Converter - Running Content' do
         pdf = to_pdf 'body', analyze: true, pdf_theme: pdf_theme, enable_footer: true
         footer_text = pdf.find_unique_text font_color: '0000FF'
         (expect footer_text[:string]).to eql '[no worky]'
-      end).to log_message severity: :WARN, message: %(~could not embed image in running content: #{fixture_file 'broken.svg'}; Missing end tag for 'rect')
+      end).to log_message severity: :WARN, message: %(~could not embed image in running content: #{fixture_file 'broken.svg'}; The data supplied is not a valid SVG document.\nMissing end tag for 'rect')
     end
 
     it 'should resolve attribute references in target of inline image' do
@@ -3129,7 +3141,7 @@ describe 'Asciidoctor::PDF::Converter - Running Content' do
 
     it 'should support data URI image', visual: true do
       image_data = File.binread fixture_file 'tux.png'
-      encoded_image_data = Base64.strict_encode64 image_data
+      encoded_image_data = [image_data].pack 'm0'
       image_url = %(data:image/png;base64,#{encoded_image_data})
       pdf_theme = {
         footer_columns: '>50% <50%',

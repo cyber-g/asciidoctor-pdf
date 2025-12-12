@@ -38,12 +38,12 @@ Gem::Specification.new do |s|
   s.add_runtime_dependency 'matrix', '~> 0.4' # required until prawn >= 2.5.0 is released
   s.add_runtime_dependency 'prawn-table', '~> 0.2.0'
   s.add_runtime_dependency 'prawn-templates', '~> 0.1.0'
-  s.add_runtime_dependency 'prawn-svg', '~> 0.33.0'
+  s.add_runtime_dependency 'prawn-svg', '~> 0.38.0'
   s.add_runtime_dependency 'prawn-icon', '~> 3.1.0'
   s.add_runtime_dependency 'concurrent-ruby', '~> 1.1'
   s.add_runtime_dependency 'treetop', '~> 1.6.0'
 
-  s.add_development_dependency 'rake', '~> 13.0.0'
+  s.add_development_dependency 'rake', '~> 13.3.0'
   s.add_development_dependency 'rspec', '~> 3.12.0'
   s.add_development_dependency 'pdf-inspector', '~> 1.3.0'
   s.add_development_dependency 'chunky_png', '~> 1.4.0'

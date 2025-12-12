@@ -1036,7 +1036,7 @@ describe 'Asciidoctor::PDF::Converter - Page' do
 
     it 'should use data URI specified by page-background-image attribute as page background', visual: true do
       image_data = File.binread fixture_file 'square.png'
-      encoded_image_data = Base64.strict_encode64 image_data
+      encoded_image_data = [image_data].pack 'm0'
       to_file = to_pdf_file <<~END, %(page-background-image-attr-data-uri.pdf)
       = Document Title
       :page-background-image: image:data:image/png;base64,#{encoded_image_data}[fit=fill]
@@ -1049,7 +1049,7 @@ describe 'Asciidoctor::PDF::Converter - Page' do
 
     it 'should use data URI specified in theme as page background', visual: true do
       image_data = File.binread fixture_file 'square.png'
-      encoded_image_data = Base64.strict_encode64 image_data
+      encoded_image_data = [image_data].pack 'm0'
       pdf_theme = { page_background_image: %(image:data:image/png;base64,#{encoded_image_data}[fit=fill]) }
       to_file = to_pdf_file <<~END, %(page-background-image-attr-data-uri.pdf), pdf_theme: pdf_theme
       = Document Title
@@ -1733,7 +1733,7 @@ describe 'Asciidoctor::PDF::Converter - Page' do
         content
         END
         (expect pdf.images).to be_empty
-      end).to log_message severity: :WARN, message: %(~Missing end tag for 'rect')
+      end).to log_message severity: :WARN, message: %(~The data supplied is not a valid SVG document.\nMissing end tag for 'rect')
     end
 
     it 'should only warn once if background image cannot be loaded' do
@@ -1828,6 +1828,12 @@ describe 'Asciidoctor::PDF::Converter - Page' do
 
       [.text-left]
       #{['lots of rambling'] * 150 * ?\n}
+
+      [page-layout=landscape]
+      <<<
+
+      [.text-left]
+      #{['lots of rambling'] * 150 * ?\n}
       END
 
       (expect to_file).to visually_match 'page-watermark.pdf'
@@ -1852,6 +1858,20 @@ describe 'Asciidoctor::PDF::Converter - Page' do
       END
 
       (expect to_file).to visually_match 'page-watermark-content-only.pdf'
+    end
+
+    it 'should support PNG transparency when applying watermark image to all pages', visual: true do
+      to_file = to_pdf_file <<~END, 'page-watermark.pdf'
+      = Document Title
+      :doctype: book
+      :notitle:
+      :page-foreground-image: image:watermark.png[]
+
+      [.text-left]
+      #{['lots of rambling'] * 250 * ?\n}
+      END
+
+      (expect to_file).to visually_match 'page-watermark-png-transparency.pdf'
     end
   end
 end

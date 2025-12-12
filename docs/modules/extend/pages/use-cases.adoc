@@ -16,6 +16,11 @@ For example, to register and use the extended converter that allows you to theme
 
  $ asciidoctor-pdf -r pdf-converter-admonition-theme-per-type.rb doc.adoc
 
+If you're using Asciidoctor PDF via the `asciidoctorj` command provided by AsciidoctorJ, you'll need to first require the `asciidoctor-pdf` gem.
+This step is necessary since the extended converter assumes that Asciidoctor PDF has already been required by the time it's required itself.
+
+ $ asciidoctorj -b pdf -r asciidoctor-pdf -r pdf-converter-admonition-theme-per-type.rb doc.adoc
+
 Refer to the sections below for details about how to use each extended converter.
 
 == Custom thematic break
@@ -347,7 +352,8 @@ This use case employs a tree processor rather than an extended PDF converter, th
 include::example$breakable-tables-tree-processor.rb[]
 ----
 
-This same technique can be used to add the `breakable` or `unbreakable` option at runtime to any blocks of your choosing.
+This same technique can be used to add the `breakable` or `unbreakable` option at runtime to any blocks that support `breakable` or `unbreakable`.
+See xref:ROOT:breakable-and-unbreakable.adoc[].
 
 == Narrow TOC
 
@@ -474,6 +480,49 @@ extends: default
 image:
   float-gap: [12, 6]
 ----
+
+== Make room for large tables
+
+Large tables may require extra space to arrange.
+Unlike HTML, PDF is a fixed-size canvas.
+That means large tables have to be squeezed to fit, which can sometimes cause them to overflow to other pages (and possibly even get cut off).
+
+Fortunately, PDF does not (practically) restrict the size of the canvas.
+That means we can allocate a larger page in order to get the table to fit.
+
+The PDF converter does not support changing the page size mid document.
+However, what it does allow you to do is import pages with any page size from another PDF.
+That means we can extend the converter in order to render the table in another document with a custom page size, then import those pages back into the main PDF.
+That's what the extended converter below does.
+
+.Extended converter that supports large tables
+[,ruby]
+----
+include::example$pdf-converter-large-tables.rb[]
+----
+
+In the overridden `convert_table` method, we first detect whether the table has either the `page-size` or `page-layout` attributes set, which effectively flags it as a large table.
+Then, we use the Asciidoctor API to convert the table in a separate document with that page size and/or layout.
+We mark that document as `:scratch` to avoid processing the same table again.
+Next, we grab the pages from the resulting PDF and import them back into the current PDF.
+Some additional work must be done with attributes to ensure the scratch document has access to the same environment as the main document.
+
+Here's how you would mark up a table to activate this functionality.
+
+[,asciidoc]
+----
+\ifdef::backend-pdf[]
+[%autowidth,cols=8,page-size=A2,page-layout=landscape]
+|===
+// table cells here
+|===
+\endif::[]
+----
+
+The page size can be any value accepted by the `pdf-page-size` document attribute.
+The page layout can be landscape or portrait.
+Note that we're allowing the converter to set the column widths automatically.
+You still have the option to set explicit width ratios, though the numbers must be greater than 0.
 
 == Theme table using roles
 
@@ -635,6 +684,19 @@ Content.
 
 Refer to <<_chapter_a>> on page pageref:_chapter_a[].
 ----
+
+== Border in page margins
+
+You can use an extended converter to emulate the "`Page Border`" and "`Surround Header`" feature of Word from Microsoft Office.
+This can be accomplished using the `stroke_horizontal_rule` and `stroke_vertical_rule` helper functions to draw lines in the margins of the page.
+
+You can find the code, description, and a screenshot of the result in the following blog post:
+
+https://shumpei-tanaka.github.io/en/posts/2024-11-23-asciidoc-page-border-in-margin/
+
+The code is also stored in the following git repository:
+
+https://github.com/Shumpei-Tanaka/asciidoc-borderinmargin
 
 == Resources
 

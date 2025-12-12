@@ -35,7 +35,7 @@ describe 'Asciidoctor::PDF::Converter - Cover Page' do
 
   it 'should add front cover page if front-cover-image attribute is set to data URI' do
     image_data = File.binread fixture_file 'cover.jpg'
-    encoded_image_data = Base64.strict_encode64 image_data
+    encoded_image_data = [image_data].pack 'm0'
     pdf = to_pdf <<~END
     = Document Title
     :front-cover-image: image:data:image/jpg;base64,#{encoded_image_data}[]
@@ -75,7 +75,7 @@ describe 'Asciidoctor::PDF::Converter - Cover Page' do
 
       (expect pdf.pages).to have_size 1
       (expect pdf.lines pdf.find_text page_number: 1).to eql ['content page']
-    end).to log_message severity: :WARN, message: %(~could not embed front cover image: #{fixture_file 'broken.svg'}; Missing end tag for 'rect')
+    end).to log_message severity: :WARN, message: %(~could not embed front cover image: #{fixture_file 'broken.svg'}; The data supplied is not a valid SVG document.\nMissing end tag for 'rect')
   end
 
   it 'should not add cover page if value is ~' do
@@ -187,7 +187,7 @@ describe 'Asciidoctor::PDF::Converter - Cover Page' do
 
   it 'should add back cover page if back-cover-image attribute is set to data URI' do
     image_data = File.binread fixture_file 'cover.jpg'
-    encoded_image_data = Base64.strict_encode64 image_data
+    encoded_image_data = [image_data].pack 'm0'
     pdf = to_pdf <<~END
     = Document Title
     :front-cover-image: image:data:image/jpg;base64,#{encoded_image_data}[]

@@ -88,6 +88,28 @@ describe 'Asciidoctor::PDF::Converter - Font' do
       (expect text[:font_name]).to eql 'NotoSerif-Bold'
     end
 
+    it 'should not look for NUL glyph in fallback font when missing from primary font' do
+      pdf_theme = {
+        extends: 'default',
+        font_catalog: {
+          'Noto Serif' => {
+            'normal' => 'notoserif-regular-subset.ttf',
+          },
+          'M+ 1p Fallback' => {
+            'normal' => 'mplus1p-regular-fallback.ttf',
+          },
+        },
+        base_font_family: 'M+ 1p Fallback',
+        font_fallbacks: ['Noto Serif'],
+      }
+      input = '. [[L1]]List item with anchor'
+      pdf = to_pdf input, analyze: true, pdf_theme: pdf_theme
+      marker, text = pdf.text
+      (expect marker[:font_name]).to eql 'mplus-1p-regular'
+      (expect text[:font_name]).to eql 'mplus-1p-regular'
+      (expect marker[:y]).to eql text[:y]
+    end
+
     it 'should include box drawing glyphs in bundled monospace font', visual: true do
       input_file = Pathname.new fixture_file 'box-drawing.adoc'
       to_file = to_pdf_file input_file, 'font-box-drawing.pdf'
@@ -161,19 +183,26 @@ describe 'Asciidoctor::PDF::Converter - Font' do
   end
 
   context 'OTF' do
-    it 'should allow theme to specify an OTF font', visual: true do
+    it 'should allow theme to specify an OTF font', unless: (Gem::Version.new RUBY_VERSION) < (Gem::Version.new '2.7.0'), visual: true, &(proc do
       to_file = to_pdf_file <<~'END', 'font-otf.pdf', enable_footer: true, attribute_overrides: { 'pdf-theme' => (fixture_file 'otf-theme.yml'), 'pdf-fontsdir' => fixtures_dir }
       == OTF
 
       You're looking at an OTF font!
       END
       (expect to_file).to visually_match 'font-otf.pdf'
-    end
+    end)
   end
 
   context 'custom' do
     it 'should resolve fonts in specified fonts dir' do
       pdf = to_pdf 'content', attribute_overrides: { 'pdf-theme' => (fixture_file 'bundled-fonts-theme.yml'), 'pdf-fontsdir' => Asciidoctor::PDF::ThemeLoader::FontsDir }
+      fonts = pdf.objects.values.select {|it| Hash === it && it[:Type] == :Font }
+      (expect fonts).to have_size 1
+      (expect fonts[0][:BaseFont]).to end_with '+NotoSerif'
+    end
+
+    it 'should resolve fonts in gem fonts dir by default' do
+      pdf = to_pdf 'content', attribute_overrides: { 'pdf-theme' => (fixture_file 'bundled-fonts-theme.yml') }
       fonts = pdf.objects.values.select {|it| Hash === it && it[:Type] == :Font }
       (expect fonts).to have_size 1
       (expect fonts[0][:BaseFont]).to end_with '+NotoSerif'
@@ -186,6 +215,13 @@ describe 'Asciidoctor::PDF::Converter - Font' do
         (expect fonts).to have_size 1
         (expect fonts[0][:BaseFont]).to end_with '+NotoSerif'
       end
+    end
+
+    it 'should resolve fonts in theme dir before gem fonts dir by default' do
+      pdf = to_pdf 'content', attribute_overrides: { 'pdf-theme' => (fixture_file 'otf-theme.yml') }
+      fonts = pdf.objects.values.select {|it| Hash === it && it[:Type] == :Font }
+      (expect fonts).to have_size 1
+      (expect fonts[0][:BaseFont]).to end_with '+Quicksand-Regular'
     end
 
     it 'should look for font file in pwd if path entry is .' do

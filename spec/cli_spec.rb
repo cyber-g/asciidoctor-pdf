@@ -37,18 +37,18 @@ describe 'asciidoctor-pdf' do
 
   context 'Require' do
     it 'should load converter if backend is pdf and require is asciidoctor-pdf', cli: true do
-      out, err, res = run_command asciidoctor_bin, '-r', 'asciidoctor-pdf', '-b', 'pdf', '-D', output_dir, (fixture_file 'hello.adoc'), use_bundler: true
-      (expect res.exitstatus).to be 0
+      out, err, res = run_command asciidoctor_bin, '-r', 'asciidoctor-pdf', '-b', 'pdf', '-D', output_dir, (fixture_file 'hello.adoc'), use_bundler: true, env: { 'RUBYOPT' => %(-r#{File.join spec_dir, 'ignore-gem-warnings.rb'}) }
       (expect out).to be_empty
       (expect err).to be_empty
+      (expect res.exitstatus).to be 0
       (expect Pathname.new output_file 'hello.pdf').to exist
     end
 
     it 'should load converter if backend is pdf and require is asciidoctor/pdf', cli: true do
-      out, err, res = run_command asciidoctor_bin, '-r', 'asciidoctor/pdf', '-b', 'pdf', '-D', output_dir, (fixture_file 'hello.adoc'), use_bundler: true
-      (expect res.exitstatus).to be 0
+      out, err, res = run_command asciidoctor_bin, '-r', 'asciidoctor/pdf', '-b', 'pdf', '-D', output_dir, (fixture_file 'hello.adoc'), use_bundler: true, env: { 'RUBYOPT' => %(-r#{File.join spec_dir, 'ignore-gem-warnings.rb'}) }
       (expect out).to be_empty
       (expect err).to be_empty
+      (expect res.exitstatus).to be 0
       (expect Pathname.new output_file 'hello.pdf').to exist
     end
   end if defined? Bundler
@@ -104,7 +104,7 @@ describe 'asciidoctor-pdf' do
       (expect res.exitstatus).to be 0
       (expect out).to be_empty
       (expect err).to be_empty
-      skip_pages = [10, 11, 14] if Gem.loaded_specs['rouge'].version < (Gem::Version.new '2.1.0')
+      skip_pages = [10, 11, 14] if Gem.loaded_specs['rouge'].version < (Gem::Version.new '4.5.2')
       reference_file = File.absolute_path example_file 'chronicles-example.pdf'
       (expect output_file 'chronicles-example.pdf').to visually_match reference_file, skip_pages: skip_pages
     end)

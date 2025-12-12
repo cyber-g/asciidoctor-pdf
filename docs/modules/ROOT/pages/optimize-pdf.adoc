@@ -6,7 +6,7 @@ By default, Asciidoctor PDF does not optimize the PDF it generates and it does n
 This page covers several approaches you can take to optimize and compress the PDF output.
 
 IMPORTANT: If you're creating a PDF for Amazon's Kindle Direct Publishing (KDP), GitLab repository preview, or other online publishers, you'll likely need to optimize the file before uploading.
-In their words, you must tidy up the reference tree and https://kdp.amazon.com/en_US/help/topic/G201953020#check[flatten all transparencies^] (mostly likely referring to images).
+In their words, you must tidy up the reference tree and https://kdp.amazon.com/en_US/help/topic/G201953020#check[flatten all transparencies^] (most likely referring to images).
 If you don't do this step, the platform may reject your upload or fail to display it properly.
 (For KDP, `-a optimize` works best.
 For GitLab repository preview, either `-a optimize` or `hexapdf optimize` will do the trick.)
@@ -83,6 +83,11 @@ This setting may be useful if you're sending the document to a printer.
 Force all text to be converted to paths (linework) so it's not selectable (in exchange for a much larger document).
 -sOwnerPassword=xyx -sUserPassword=xyx::
 Require a password to open the document (owner for edit, user for view).
+-dColorImageResolution=<number>::
+Resamples images to the resolution specified by `<number>` (e.g., `-dColorImageResolution=96`).
+This setting can dramatically reduce the size of the generated PDF.
+This option only works if optimize quality is set to `screen` or `ebook` (e.g., `-a optimize=screen`).
+Otherwise, it is ignored.
 
 As a shorthand for using the `-sColorConversionStrategy=Gray` option, you can pass the `gray` color mode after the quality value:
 
@@ -173,8 +178,8 @@ To see all the options that `hexapdf optimize` offers, run:
 
  $ hexapdf help optimize
 
-For example, to make the source of the PDF a bit more readable (though less optimized), set the stream-related options to `preserve` (e.g., `--streams preserve` from the CLI or `options.streams = :preserve` from the API).
-You can also disable page compression (e.g., `--no-compress-pages` from the CLI or `options.compress_pages = false` from the API).
+For example, to make the source of the PDF a bit more readable (though less optimized), set the stream-related options to `preserve` (e.g., `--streams preserve` from the CLI or `options[:streams] = :preserve` from the API).
+You can also disable page compression (e.g., `--no-compress-pages` from the CLI or `options[:compress_pages] = false` from the API).
 
 hexapdf also allows you to add password protection to your PDF, if that's something you're interested in doing.
 

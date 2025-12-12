@@ -6,8 +6,12 @@ source 'https://rubygems.org'
 gemspec
 
 gem 'asciidoctor', ENV['ASCIIDOCTOR_VERSION'], require: false if ENV.key? 'ASCIIDOCTOR_VERSION'
-gem 'asciidoctor-diagram', ENV['ASCIIDOCTOR_DIAGRAM_VERSION'], require: false if ENV.key? 'ASCIIDOCTOR_DIAGRAM_VERSION'
+if ENV.key? 'ASCIIDOCTOR_DIAGRAM_VERSION'
+  gem 'asciidoctor-diagram', ENV['ASCIIDOCTOR_DIAGRAM_VERSION'], require: false
+  gem 'asciidoctor-diagram-plantuml', '1.2025.3', require: false
+end
 gem 'asciidoctor-kroki', ENV['ASCIIDOCTOR_KROKI_VERSION'], require: false if ENV.key? 'ASCIIDOCTOR_KROKI_VERSION'
+gem 'bigdecimal', require: false if (Gem::Version.new RUBY_VERSION) >= (Gem::Version.new '3.4.0')
 gem 'coderay', '~> 1.1.0', require: false
 gem 'ffi-icu', ENV['FFI_ICU_VERSION'], require: false if ENV.key? 'FFI_ICU_VERSION'
 gem 'open-uri-cached', '~> 1.0.0', require: false
@@ -23,18 +27,13 @@ group :docs do
 end
 
 group :lint do
-  if (Gem::Version.new RUBY_VERSION) < (Gem::Version.new '2.6.0')
-    gem 'rubocop', '~> 1.28.0', require: false
-    gem 'rubocop-rake', '~> 0.6.0', require: false
-    gem 'rubocop-rspec', '~> 2.10.0', require: false
-  else
-    gem 'rubocop', '~> 1.50.0', require: false
-    gem 'rubocop-rake', '~> 0.6.0', require: false
-    gem 'rubocop-rspec', '~> 2.20.0', require: false
-  end
+  gem 'rubocop', '~> 1.81.0', require: false
+  gem 'rubocop-rake', '~> 0.7.0', require: false
+  gem 'rubocop-rspec', '~> 3.7.0', require: false
 end
 
 group :coverage do
   gem 'deep-cover-core', '~> 1.1.0', require: false
+  gem 'json', '~> 2.7', require: false if (Gem::Version.new RUBY_VERSION) > (Gem::Version.new '3.3.4')
   gem 'simplecov', '~> 0.22.0', require: false
 end

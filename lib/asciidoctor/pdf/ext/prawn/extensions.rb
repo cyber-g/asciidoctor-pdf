@@ -368,7 +368,7 @@ module Asciidoctor
             super points.to_f
           end
         else
-          super points
+          super
         end
       end
 
@@ -879,6 +879,8 @@ module Asciidoctor
       # However, due to how page creation works in Prawn, understand that advancing
       # to the next page is necessary to prevent the size & layout of the imported
       # page from affecting a newly created page.
+      #
+      # Returns a Boolean indicating whether the page to import exists and was imported.
       def import_page file, options = {}
         prev_page_layout = page.layout
         prev_page_size = page.size
@@ -900,6 +902,7 @@ module Asciidoctor
             advance_page layout: prev_page_layout, margin: prev_page_margin, size: prev_page_size
             (@bounding_box = prev_bounds).reset_top if ColumnBox === prev_bounds
           end
+          imported = true
         elsif options.fetch :advance_if_missing, true
           delete_current_page
           # NOTE: see previous comment
@@ -908,7 +911,7 @@ module Asciidoctor
         else
           delete_current_page
         end
-        nil
+        imported
       end
 
       # Create a new page for the specified image.
@@ -1134,7 +1137,11 @@ module Asciidoctor
           bounds_copy.instance_variable_set :@parent, saved_bounds
           bounds_copy.single_file if ColumnBox === bounds_copy
         end
-        scratch_pdf.move_cursor_to cursor unless (scratch_start_at_top = keep_together || pages_advanced > 0 || at_page_top?)
+        if !(scratch_start_at_top = keep_together || pages_advanced > 0 || at_page_top?)
+          scratch_pdf.move_cursor_to cursor
+        elsif ColumnBox === bounds
+          scratch_pdf.move_cursor_to scratch_pdf.bounds.top
+        end
         scratch_start_cursor = scratch_pdf.cursor
         scratch_start_page = scratch_pdf.page_number
         inhibit_new_page = state.on_page_create_callback == InhibitNewPageProc

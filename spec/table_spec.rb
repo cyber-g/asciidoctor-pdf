@@ -15,6 +15,10 @@ describe 'Asciidoctor::PDF::Converter - Table' do
   end
 
   it 'should not crash if cols and table cells are mismatched' do
+    expected_messages = [severity: :WARN, message: 'no rows found in table']
+    if (Gem::Version.new Asciidoctor::VERSION) > (Gem::Version.new '2.0.22')
+      expected_messages.unshift severity: :ERROR, message: 'dropping cells from incomplete row detected end of table'
+    end
     (expect do
       pdf = to_pdf <<~'END', analyze: :line
       [cols="1,"]
@@ -24,7 +28,7 @@ describe 'Asciidoctor::PDF::Converter - Table' do
       END
 
       (expect pdf.lines).to have_size 8
-    end).to not_raise_exception & (log_message severity: :WARN, message: 'no rows found in table')
+    end).to not_raise_exception & (log_messages expected_messages)
   end
 
   it 'should not crash when rows have cells with colspans of varying length' do
@@ -1334,6 +1338,134 @@ describe 'Asciidoctor::PDF::Converter - Table' do
       table_cell_page_nums = pdf.text.reject {|it| it[:string] == 'filler' }.map {|it| it[:page_number] }
       (expect table_cell_page_nums.uniq).to have_size 1
       (expect table_cell_page_nums[0]).to be 2
+    end
+  end
+
+  context 'Extent' do
+    it 'should have width equal to container width when extent not specified' do
+      input = <<~'END'
+      [cols=1;1;1,grid=none,frame=sides]
+      |===
+      |A |B |C
+      |1 |2 |3
+      |===
+      END
+
+      page_margin_left = 26.0
+      page_margin_right = 36.0
+
+      section_indent_left = 10.0
+      section_indent_right = 15.0
+
+      pdf_theme = {
+        page_margin: [0.0, page_margin_right, 0.0, page_margin_left],
+        section_indent: [section_indent_left, section_indent_right],
+      }
+      pdf = to_pdf input, pdf_theme: pdf_theme, analyze: true
+      lines = (to_pdf input, pdf_theme: pdf_theme, analyze: :line).lines
+      page_width = pdf.pages[0][:size][0]
+
+      left_border_x = lines.min_by {|l| l[:from][:x] }[:from][:x]
+      right_border_x = lines.max_by {|l| l[:from][:x] }[:from][:x]
+
+      left_margin_x = page_margin_left + section_indent_left
+      right_margin_x = page_width - (page_margin_right + section_indent_right)
+
+      (expect left_border_x).to eql left_margin_x
+      (expect right_border_x).to eql right_margin_x
+    end
+
+    it 'should have width equal to the margin width when extent=margin' do
+      input = <<~'END'
+      [cols=1;1;1,grid=none,frame=sides,extent=margin,width=100%]
+      |===
+      |A |B |C
+      |1 |2 |3
+      |===
+      END
+
+      page_margin_left = 26.0
+      page_margin_right = 36.0
+
+      section_indent_left = 10.0
+      section_indent_right = 15.0
+
+      pdf_theme = {
+        page_size: :Letter,
+        page_margin: [0.0, page_margin_right, 0.0, page_margin_left],
+        section_indent: [section_indent_left, section_indent_right],
+      }
+      pdf = to_pdf input, pdf_theme: pdf_theme, analyze: true
+      lines = (to_pdf input, pdf_theme: pdf_theme, analyze: :line).lines
+      page_width = pdf.pages[0][:size][0]
+      left_border_x = lines.min_by {|l| l[:from][:x] }[:from][:x]
+      right_border_x = lines.max_by {|l| l[:from][:x] }[:from][:x]
+
+      left_margin_x = page_margin_left
+      right_margin_x = page_width - page_margin_right
+
+      (expect left_border_x).to eql left_margin_x
+      (expect right_border_x).to eql right_margin_x
+    end
+
+    it 'should have a width equal to pdf width when extent=page' do
+      input = <<~'END'
+      [cols=1;1;1,grid=none,frame=sides,extent=page]
+      |===
+      |A |B |C
+      |1 |2 |3
+      |===
+      END
+
+      pdf_theme = { page_margin: [0.0, 36.0, 0.0, 26.0], section_indent: [10.0, 15.0] }
+      pdf = to_pdf input, pdf_theme: pdf_theme, analyze: true
+      lines = (to_pdf input, pdf_theme: pdf_theme, analyze: :line).lines
+      page_width = pdf.pages[0][:size][0]
+      left_border_x = lines.min_by {|l| l[:from][:x] }[:from][:x]
+      right_border_x = lines.max_by {|l| l[:from][:x] }[:from][:x]
+
+      left_margin_x = 0.0
+      right_margin_x = page_width
+
+      (expect left_border_x).to eql left_margin_x
+      (expect right_border_x).to eql right_margin_x
+    end
+
+    it 'should ignore extent attribute on to nested tables' do
+      input = <<~END
+      [cols=1;2a;1,grid=cols,frame=none]
+      |===
+      |Normal cell1
+      |Cell with nested table
+      [cols=2;1,grid=none,frame=sides,extent=margin]
+      !===
+      !Nested table cell 1 !Nested table cell 2
+      !===
+      |Normal cell2
+      |===
+      END
+
+      parent_table_width = 2.0
+      nested_table_width = 1.0
+
+      pdf_theme = {
+        table_border_width: nested_table_width,
+        table_grid_width: parent_table_width,
+        page_margin: [0.0, 36.0, 0.0, 26.0],
+        section_indent: [10.0, 15.0],
+      }
+      lines = (to_pdf input, pdf_theme: pdf_theme, analyze: :line).lines
+
+      parent_lines = lines.select {|l| l[:width] == parent_table_width }
+      parent_left = parent_lines.min_by {|l| l[:from][:x] }[:from][:x]
+      parent_right = parent_lines.max_by {|l| l[:from][:x] }[:from][:x]
+
+      nested_lines = lines.select {|l| l[:width] == nested_table_width }
+      nested_left = nested_lines.min_by {|l| l[:from][:x] }[:from][:x]
+      nested_right = nested_lines.max_by {|l| l[:from][:x] }[:from][:x]
+
+      (expect nested_left).to be > parent_left
+      (expect nested_right).to be < parent_right
     end
   end
 
@@ -2745,6 +2877,65 @@ describe 'Asciidoctor::PDF::Converter - Table' do
         end).to log_message severity: :ERROR, message: 'the table cell on page 1 has been truncated; Asciidoctor PDF does not support table cell content that exceeds the height of a single page'
       end
     end
+
+    it 'should reserve remaining space on page once cell is determined to fit' do
+      pdf_theme = {
+        extends: 'default',
+        page_layout: 'landscape',
+        page_margin: 56,
+        base_font_size: 10.5,
+        base_line_height: 1.5,
+        list_item_spacing: 0,
+        prose_margin_bottom: 6,
+        table_cell_padding: [3, 5],
+      }
+
+      input = <<~END
+      :pdf-page-layout: landscape
+      :nofooter:
+
+      .Table 1
+      [cols=a]
+      |===
+      | Row 1
+      | * 1
+      * 2
+      * 3
+      * 4
+      |===
+
+      .Table 2
+      [cols=a]
+      |===
+      | Row 1
+      | * 1
+      * 2
+      * 3
+      * 4
+      |===
+
+      .Table 3
+      [cols=a]
+      |===
+      | Row 1
+      | * 1
+      * 2
+      * 3
+      * 4
+      * 5
+      * second to last line
+      * last line
+      |===
+      END
+
+      pdf = nil
+      (expect do
+        pdf = to_pdf input, pdf_theme: pdf_theme, analyze: true
+      end).not_to log_message
+      last_line_text = pdf.find_unique_text 'last line'
+      (expect last_line_text).not_to be_nil
+      (expect last_line_text[:page_number]).to eql 1
+    end
   end
 
   context 'Caption' do
@@ -2996,6 +3187,80 @@ describe 'Asciidoctor::PDF::Converter - Table' do
       cell2_text = pdf.find_unique_text '2'
       (expect caption_prefix_text[:x] - 5).to be > cell2_text[:x]
       (expect caption_wrap_text[:x]).to be > caption_prefix_text[:x]
+    end
+
+    it 'should not keep caption with table without breakable option and heading-min-height-after is auto' do
+      pdf_theme = { heading_min_height_after: 'auto' }
+      filler = (['filler'] * 35).join %( +\n)
+      pdf = to_pdf <<~END, pdf_theme: pdf_theme, analyze: true
+      = Document Title
+      :!table-caption:
+
+      == Section Title
+
+      #{filler}
+
+      === Subsection Title
+
+      .Table title
+      |===
+      |Col A |Col B |Col C
+
+      |A1
+      |B1
+      |C1
+
+      |A2
+      |B2
+      |C2
+      |===
+      END
+
+      subsection_title = pdf.find_unique_text 'Subsection Title'
+      (expect subsection_title).not_to be_nil
+      (expect subsection_title[:page_number]).to be 1
+      table_caption = pdf.find_unique_text 'Table title'
+      (expect table_caption).not_to be_nil
+      (expect table_caption[:page_number]).to be 1
+      col_a_text = pdf.find_unique_text 'Col A'
+      (expect col_a_text).not_to be_nil
+      (expect col_a_text[:page_number]).to be 2
+    end
+
+    it 'should keep caption with table with breakable option and heading-min-height-after is auto' do
+      pdf_theme = { heading_min_height_after: 'auto' }
+      filler = (['filler'] * 35).join %( +\n)
+      pdf = to_pdf <<~END, pdf_theme: pdf_theme, analyze: true
+      = Document Title
+      :!table-caption:
+
+      == Section Title
+
+      #{filler}
+
+      === Subsection Title
+
+      .Table title
+      [%breakable]
+      |===
+      |A |B |C
+
+      |A1
+      |B1
+      |C1
+
+      |A2
+      |B2
+      |C2
+      |===
+      END
+
+      subsection_title = pdf.find_unique_text 'Subsection Title'
+      (expect subsection_title).not_to be_nil
+      (expect subsection_title[:page_number]).to be 2
+      table_caption = pdf.find_unique_text 'Table title'
+      (expect table_caption).not_to be_nil
+      (expect table_caption[:page_number]).to be 2
     end
   end
 

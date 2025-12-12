@@ -141,7 +141,7 @@ module RSpec::ExampleHelpers
     if page_num
       (pdf.page page_num).xobjects.select {|_, candidate| candidate.hash[:Subtype] == :Image }.values
     else
-      pdf.pages.each_with_object([]) {|page, accum| page.xobjects.each {|_, candidate| candidate.hash[:Subtype] == :Image ? (accum << candidate) : accum } }
+      pdf.pages.each_with_object([]) {|page, accum| page.xobjects.each_value {|candidate| candidate.hash[:Subtype] == :Image ? (accum << candidate) : accum } }
     end
   end
 
@@ -200,7 +200,9 @@ module RSpec::ExampleHelpers
       end
       kw_args = Hash === args[-1] ? args.pop : {}
       env_override = kw_args[:env] || {}
-      unless kw_args[:use_bundler]
+      if kw_args[:use_bundler]
+        env_override['RUBYOPT'] = [ENV['RUBYOPT'], env_override['RUBYOPT']].compact.join ' ' if env_override.key? 'RUBYOPT'
+      else
         env_override['RUBYOPT'] = nil
       end
       if (out = kw_args[:out])

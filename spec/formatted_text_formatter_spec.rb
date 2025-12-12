@@ -114,7 +114,7 @@ describe Asciidoctor::PDF::FormattedText::Formatter do
       (expect output[1][:styles]).to be_nil
     end
 
-    it 'should warn if text contains unrecognized tag' do
+    it 'should log error if text contains unrecognized tag' do
       input = 'before <foo>bar</foo> after'
       (expect do
         output = subject.format input
@@ -123,13 +123,23 @@ describe Asciidoctor::PDF::FormattedText::Formatter do
       end).to log_message severity: :ERROR, message: /^failed to parse formatted text: #{Regexp.escape input} \(reason: Expected one of .* after < at byte 9\)/
     end
 
-    it 'should warn if text contains unrecognized entity' do
+    it 'should log error if text contains unrecognized entity' do
       input = 'a &daggar; in the back'
       (expect do
         output = subject.format input
         (expect output).to have_size 1
         (expect output[0][:text]).to eql input
       end).to log_message severity: :ERROR, message: /^failed to parse formatted text: #{Regexp.escape input} \(reason: Expected one of .* after & at byte 4\)/
+    end
+
+    it 'should remove shy from log message when text cannot be parsed' do
+      input_original = 'Asciidoctor PDF is a native PDF converter for the <em>AsciiDoc language.'
+      input = input_original.gsub '-', Prawn::Text::SHY
+      (expect do
+        output = subject.format input
+        (expect output).to have_size 1
+        (expect output[0][:text]).to eql input
+      end).to log_message severity: :ERROR, message: /^failed to parse formatted text: #{Regexp.escape input_original} \(reason: Expected one of .* after <em>AsciiDoc language. at byte 73\)/
     end
 
     it 'should allow span tag to control width' do
@@ -1022,6 +1032,11 @@ describe Asciidoctor::PDF::FormattedText::Formatter do
       HTML stands for [.sc]#HyperText Markup Language#
       END
       (expect pdf.lines).to eql ['HTML stands for HʏᴘᴇʀTᴇxᴛ Mᴀʀᴋᴜᴘ Lᴀɴɢᴜᴀɢᴇ']
+    end
+
+    it 'should decompose non-ASCII characters when applying smallcaps text transform' do
+      pdf = to_pdf '== Références', pdf_theme: { heading_text_transform: 'smallcaps' }, analyze: true
+      (expect pdf.lines).to eql [%(R\u1d07\u0301ғ\u1d07\u0301ʀᴇɴᴄᴇs)]
     end
 
     it 'should allow custom role to specify relative font size' do

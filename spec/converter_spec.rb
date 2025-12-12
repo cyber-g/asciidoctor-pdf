@@ -142,14 +142,14 @@ describe Asciidoctor::PDF::Converter do
 
     it 'should not fail to remove tmp files if already removed' do
       image_data = File.read (fixture_file 'square.jpg'), mode: 'r:UTF-8'
-      encoded_image_data = Base64.strict_encode64 image_data
+      encoded_image_data = [image_data].pack 'm0'
       doc = Asciidoctor.load <<~END, backend: 'pdf'
       :page-background-image: image:data:image/png;base64,#{encoded_image_data}[Square,fit=cover]
       END
       pdf_doc = doc.convert
       tmp_files = (converter = doc.converter).instance_variable_get :@tmp_files
       (expect tmp_files).to have_size 1
-      tmp_files.each {|_, path| converter.send :unlink_tmp_file, path }
+      tmp_files.each_value {|path| converter.send :unlink_tmp_file, path }
       doc.write pdf_doc, (pdf_io = StringIO.new)
       pdf = PDF::Reader.new pdf_io
       (expect get_images pdf).to have_size 1
@@ -158,7 +158,7 @@ describe Asciidoctor::PDF::Converter do
     it 'should not fail to remove tmp files if they are not writable' do
       (expect do
         image_data = File.read (fixture_file 'square.jpg'), mode: 'r:UTF-8'
-        encoded_image_data = Base64.strict_encode64 image_data
+        encoded_image_data = [image_data].pack 'm0'
         doc = Asciidoctor.load <<~END, backend: 'pdf'
         :page-background-image: image:data:image/png;base64,#{encoded_image_data}[Square,fit=cover]
         END
@@ -180,7 +180,7 @@ describe Asciidoctor::PDF::Converter do
 
     it 'should keep tmp files if KEEP_ARTIFACTS environment variable is set' do
       image_data = File.read (fixture_file 'square.jpg'), mode: 'r:UTF-8'
-      encoded_image_data = Base64.strict_encode64 image_data
+      encoded_image_data = [image_data].pack 'm0'
       doc = Asciidoctor.load <<~END, backend: 'pdf'
       :page-background-image: image:data:image/png;base64,#{encoded_image_data}[Square,fit=cover]
       END
@@ -193,7 +193,7 @@ describe Asciidoctor::PDF::Converter do
       pdf = PDF::Reader.new pdf_io
       (expect get_images pdf).to have_size 1
       (expect tmp_files).to have_size 1
-      tmp_files.each do |_, path|
+      tmp_files.each_value do |path|
         (expect Pathname.new path).to exist
         File.unlink path
       end
@@ -351,7 +351,7 @@ describe Asciidoctor::PDF::Converter do
         (expect do
           pdf = to_pdf 'content', attribute_overrides: { 'pdf-theme' => (fixture_file 'invalid-theme.yml') }, analyze: true
           (expect pdf.pages).to have_size 1
-        end).to log_message severity: :ERROR, message: /because of NoMethodError undefined method `start_with\?' for (?:10:(?:Fixnum|Integer)|an instance of Integer); reverting to default theme/
+        end).to log_message severity: :ERROR, message: /because of NoMethodError undefined method [`']start_with\?' for (?:10:(?:Fixnum|Integer)|an instance of Integer); reverting to default theme/
       end
 
       it 'should not crash if theme does not specify any keys' do
