@@ -12,7 +12,7 @@ The extent attribute accepts three values:
 
 == container
 
-If the value of the extent attribute is `conntainer`, or not set, the maximum width of the table is the width of the current container.
+If the value of the extent attribute is `container`, or not set, the maximum width of the table is the width of the current container.
 In a document with a single column, this is typically the space between the side margins.
 In a document with multiple columns, this is typically the boundaries of the column.
 If the section body is intended (using the `section-indent` theme key), the container is defined by that indented column.

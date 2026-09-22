@@ -183,6 +183,12 @@ module Asciidoctor
           font @theme.base_font_family, size: @root_font_size, style: @theme.base_font_style
         end
 
+        # HACK: demote abstract section to styled open block to hide from TOC
+        if doctype == 'article' && (first_section = doc.sections[0]) && first_section.sectname === 'abstract'
+          first_section.context = :open
+          first_section.style = 'abstract'
+        end
+
         unless title_as_page
           body_start_page_number = page_number
           theme_font :heading, level: 1 do
@@ -656,11 +662,8 @@ module Asciidoctor
       end
 
       def convert_section sect, _opts = nil
-        if (sectname = sect.sectname) == 'abstract'
-          # HACK: cheat a bit to hide this section from TOC; TOC should filter these sections
-          sect.context = :open
-          return convert_abstract sect
-        elsif (index_section = sectname == 'index') && @index.empty?
+        sectname = sect.sectname
+        if (index_section = sectname == 'index') && @index.empty?
           # override numbered_title to hide entry from TOC
           sect.define_singleton_method :numbered_title, ->(*) { '' }
           return
@@ -695,7 +698,7 @@ module Asciidoctor
         # QUESTION: should we just assign the section this generated id?
         # NOTE: section must have pdf-anchor in order to be listed in the TOC
         sect.set_attr 'pdf-anchor', (sect_anchor = derive_anchor_from_id sect.id, %(#{start_pgnum}-#{y.ceil}))
-        add_dest_for_block sect, id: sect_anchor, y: (at_page_top? ? page_height : nil)
+        add_dest_for_block sect, anchor: sect_anchor, y: (at_page_top? ? page_height : nil)
         theme_font :heading, level: hlevel do
           if part
             ink_part_title sect, title, hopts
@@ -2530,7 +2533,7 @@ module Asciidoctor
         target = node.target
         case node.type
         when :link
-          anchor = node.id ? %(<a id="#{node.id}">#{DummyText}</a>) : ''
+          anchor = node.id ? %(<a id="#{derive_anchor_from_id node.id}">#{DummyText}</a>) : ''
           class_attr = ''
           if (role = node.role)
             class_attr = %( class="#{role}")
@@ -2568,7 +2571,7 @@ module Asciidoctor
                 text = text.gsub DropAnchorRx, ''
               end
               if ref.inline? && ref.type == :bibref && !scratch? && (@bibref_refs.add? refid)
-                anchor = %(<a id="_bibref_ref_#{refid}">#{DummyText}</a>)
+                anchor = %(<a id="#{derive_anchor_from_id "_bibref_ref_#{refid}"}">#{DummyText}</a>)
               end
               @resolving_xref = nil
             end
@@ -2578,14 +2581,14 @@ module Asciidoctor
           end
         when :ref
           # NOTE: destination is created inside callback registered by FormattedTextTransform#build_fragment
-          %(<a id="#{node.id}">#{DummyText}</a>)
+          %(<a id="#{derive_anchor_from_id node.id}">#{DummyText}</a>)
         when :bibref
           id = node.id
           # NOTE: technically node.text should be node.reftext, but subs have already been applied to text
           reftext = (reftext = node.reftext) ? %([#{reftext}]) : %([#{id}])
-          reftext = %(<a anchor="_bibref_ref_#{id}">#{reftext}</a>) if @bibref_refs.include? id
+          reftext = %(<a anchor="#{derive_anchor_from_id "_bibref_ref_#{id}"}">#{reftext}</a>) if @bibref_refs.include? id
           # NOTE: destination is created inside callback registered by FormattedTextTransform#build_fragment
-          %(<a id="#{id}">#{DummyText}</a>#{reftext})
+          %(<a id="#{derive_anchor_from_id id}">#{DummyText}</a>#{reftext})
         else
           log :warn, %(unknown anchor type: #{node.type.inspect})
           nil
@@ -2827,7 +2830,7 @@ module Asciidoctor
         end
 
         # NOTE: destination is created inside callback registered by FormattedTextTransform#build_fragment
-        node.id ? %(<a id="#{node.id}">#{DummyText}</a>#{quoted_text}) : quoted_text
+        node.id ? %(<a id="#{derive_anchor_from_id node.id}">#{DummyText}</a>#{quoted_text}) : quoted_text
       end
 
       # If an id is provided or the node passed as the first argument has an id,
@@ -2840,8 +2843,8 @@ module Asciidoctor
       # experience. If the current x position is at or inside the left margin, set
       # the x position equal to 0 (left edge of page) to improve the navigation
       # experience.
-      def add_dest_for_block node, id: nil, y: nil
-        if !scratch? && (id ||= node.id)
+      def add_dest_for_block node, anchor: nil, id: nil, y: nil
+        if !scratch? && (anchor || ((id ||= node.id) && (anchor = derive_anchor_from_id id)))
           dest_x = bounds.absolute_left.truncate 4
           # QUESTION: when content is aligned to left margin, should we keep precise x value or just use 0?
           dest_x = 0 if dest_x <= page_margin_left
@@ -2851,7 +2854,7 @@ module Asciidoctor
           end
           # TODO: find a way to store only the ref of the destination; look it up when we need it
           node.set_attr 'pdf-destination', (node_dest = (dest_xyz dest_x, dest_y))
-          add_dest id, node_dest
+          add_dest anchor, node_dest
         end
         nil
       end
@@ -2880,7 +2883,7 @@ module Asciidoctor
           pagenum_labels[n] = { P: (::PDF::Core::LiteralString.new (i + 1).to_s) }
         end
 
-        unless toc_page_nums.none? || (toc_title = doc.attr 'toc-title').nil_or_empty?
+        unless toc_page_nums.none? || (toc_title = doc.attr 'toc-title').nil_or_empty? || doc.sections.empty?
           toc_section = insert_toc_section doc, toc_title, toc_page_nums
         end
 
@@ -3700,7 +3703,7 @@ module Asciidoctor
             end
             toc_page_nums = nil if toc_page_nums.end == pgnum
           elsif last_chap == :pre
-            chapters_by_page[pgnum] = pgnum < body_start_page_number ? doc.doctitle : (doc.attr 'preface-title', 'Preface')
+            chapters_by_page[pgnum] = pgnum < body_start_page_number ? doc.doctitle : (doc.attr 'preface-title', (doc.attr_unspecified? 'preface-title') ? 'Preface' : '')
             sections_by_page[pgnum] = last_sect
           else
             chapters_by_page[pgnum] = last_chap
@@ -5006,7 +5009,7 @@ module Asciidoctor
       def derive_anchor_from_id value, default_value = nil
         if value
           value.ascii_only? ? value : %(0x#{::PDF::Core.string_to_hex value})
-        else
+        elsif default_value
           %(__anchor-#{default_value})
         end
       end
